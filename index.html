@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GCP 个人 API 中心</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 24px; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; color: #fff; }
+  .sub { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin-bottom: 12px; color: #7dd3fc; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge { font-size: 11px; background: #0ea5e9; color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+  label { display: block; font-size: 12px; color: #94a3b8; margin: 10px 0 4px; }
+  input, textarea, select { width: 100%; padding: 9px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: #0ea5e9; }
+  textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+  button { margin-top: 12px; padding: 10px 20px; background: #0ea5e9; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  button:hover { background: #0284c7; }
+  button:disabled { background: #475569; cursor: not-allowed; }
+  button.ghost { background: transparent; border: 1px solid #334155; color: #94a3b8; font-weight: 400; }
+  button.ghost:hover { border-color: #0ea5e9; color: #7dd3fc; }
+  .out { margin-top: 12px; background: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; font-size: 14px; word-break: break-word; min-height: 20px; }
+  .out.ok { border-color: #16a34a; color: #bbf7d0; }
+  .out.err { border-color: #dc2626; color: #fecaca; }
+  .out.info { color: #94a3b8; }
+  audio { width: 100%; margin-top: 12px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  @media (max-width: 620px){ .row { flex-direction: column; } }
+  .stats-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; }
+  .stat-box { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:14px; text-align:center; }
+  .stat-num { font-size:20px; font-weight:700; color:#7dd3fc; }
+  .stat-lbl { font-size:12px; color:#94a3b8; margin-top:6px; }
+  .controls { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
+  /* 密码门 */
+  #gate { position: fixed; inset: 0; background: rgba(15,23,42,.92); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 99; }
+  .gate-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 36px 32px; width: 340px; text-align: center; }
+  .gate-box h2 { color: #fff; font-size: 18px; margin-bottom: 6px; }
+  .gate-box p { color: #94a3b8; font-size: 13px; margin-bottom: 18px; }
+  .gate-box input { text-align: center; letter-spacing: 2px; font-size: 16px; }
+  .gate-box button { width: 100%; }
+  .gate-err { color: #f87171; font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .hidden { display: none !important; }
+  code { color: #7dd3fc; }
+</style>
+</head>
+<body>
+
+<!-- 密码门 -->
+<div id="gate">
+  <div class="gate-box">
+    <h2>🔒 API 控制台</h2>
+    <p>请输入访问密码</p>
+    <input type="password" id="gate_pwd" placeholder="访问密码" autofocus>
+    <button onclick="gateTry()">解锁</button>
+    <div class="gate-err" id="gate_err"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="visibility:hidden;">
+  <h1>GCP 个人 API 中心</h1>
+  <div class="sub">translate · tts · stt — <span id="gate_user" style="color:#4ade80;">已解锁</span> <a href="#" onclick="gateLock();return false;" style="color:#94a3b8;font-size:12px;">[锁定]</a></div>
+
+  <div class="card">
+    <h2>0. 服务器地址 <span class="badge">必填</span></h2>
+    <label>API 地址（默认走 Cloudflare HTTPS；也可填 IP）</label>
+    <input id="cfg_ip" placeholder="https://gcp.111312.xyz">
+    <div class="controls">
+      <button onclick="saveBase()">保存地址</button>
+      <button class="ghost" onclick="pingAll()">测活</button>
+      <span style="font-size:13px;color:#94a3b8;">当前: <code id="base">未设置</code></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. 翻译 <span class="badge">LibreTranslate</span></h2>
+    <div class="row">
+      <div>
+        <label>原文 (q)</label>
+        <textarea id="t_text">Hello world, how are you today?</textarea>
+      </div>
+      <div style="max-width:180px;">
+        <label>源语言</label>
+        <input id="t_from" value="en">
+        <label>目标语言</label>
+        <input id="t_to" value="zh">
+      </div>
+    </div>
+    <button onclick="doTranslate(this)">翻译</button>
+    <div class="out info" id="t_out">等待输入…</div>
+  </div>
+
+  <div class="card">
+    <h2>2. 语音合成 <span class="badge">Piper 中文</span></h2>
+    <label>文本</label>
+    <textarea id="tts_text">你好，欢迎使用我的个人语音合成服务。今天天气真不错。</textarea>
+    <label>声音</label>
+    <select id="tts_voice">
+      <option value="zh_CN-huayan-medium">zh_CN-huayan-medium</option>
+    </select>
+    <button onclick="doTTS(this)">合成语音</button>
+    <div class="out info" id="tts_out">等待输入…</div>
+    <div id="tts_audio"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. 语音识别 <span class="badge">Whisper base</span></h2>
+    <label>选择音频文件 (wav/mp3)</label>
+    <input type="file" id="stt_file" accept="audio/*">
+    <div class="controls">
+      <button onclick="doSTT()" style="margin-top:0;">识别</button>
+      <button onclick="useTtsAudio()" id="useTtsBtn" class="ghost" style="display:none; margin-top:0;">用上方合成结果测试</button>
+    </div>
+    <div class="out info" id="stt_out">等待输入…</div>
+  </div>
+
+  <div class="card">
+    <h2>4. 服务器状态 <span class="badge">/stats</span></h2>
+    <div class="stats-grid" id="stats_grid"><div class="stat-box"><div class="stat-lbl">点击"刷新状态"获取</div></div></div>
+    <button class="ghost" onclick="loadStats(this)">刷新状态</button>
+  </div>
+</div>
+
+<script>
+/* ===== 密码门（SHA-256 校验，会话记住 7 天） ===== */
+const PWD_HASH = "64df0a866ca13f62a0a2158ce8e737be27d49b11f6bdc707e89f0a7e86b3281c";
+const GATE_KEY = "gcp_gate_until";
+
+async function sha256(s){
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+function gateOpen(){ document.getElementById("gate").classList.add("hidden"); document.getElementById("app").style.visibility="visible"; }
+function gateLock(){ localStorage.removeItem(GATE_KEY); location.reload(); }
+async function gateTry(){
+  const h = await sha256(document.getElementById("gate_pwd").value);
+  if(h === PWD_HASH){
+    localStorage.setItem(GATE_KEY, Date.now() + 7*864e5);
+    gateOpen();
+  } else {
+    document.getElementById("gate_err").textContent = "密码错误，再试试";
+    document.getElementById("gate_pwd").value = "";
+  }
+}
+document.getElementById("gate_pwd").addEventListener("keydown", e=>{ if(e.key==="Enter") gateTry(); });
+(function(){
+  const until = +(localStorage.getItem(GATE_KEY)||0);
+  if(until > Date.now()) gateOpen();
+  else localStorage.removeItem(GATE_KEY);
+})();
+
+/* ===== 服务器地址 ===== */
+const DEFAULT_BASE = "https://gcp.111312.xyz";
+function normalizeBase(v){
+  v = (v||"").trim().replace(/\/+$/,"");
+  if(!v) return "";
+  if(!/^https?:\/\//i.test(v)) v = "https://" + v;
+  return v;
+}
+let BASE = normalizeBase(localStorage.getItem("gcp_base")) || DEFAULT_BASE;
+document.getElementById("cfg_ip").value = BASE.replace(/^https?:\/\//i,"");
+document.getElementById("base").textContent = BASE;
+function saveBase(){
+  BASE = normalizeBase(document.getElementById("cfg_ip").value);
+  localStorage.setItem("gcp_base", BASE);
+  document.getElementById("base").textContent = BASE || "未设置";
+}
+
+let lastWavBlob = null;
+function show(id, html, cls){
+  const el = document.getElementById(id);
+  el.className = "out " + (cls||"info");
+  el.innerHTML = html;
+}
+async function api(path, opts){
+  const r = await fetch(BASE + path, opts);
+  return r;
+}
+
+/* 1 翻译 */
+async function doTranslate(btn){
+  if(!BASE){ show("t_out","请先设置服务器地址","info"); return; }
+  btn.disabled = true;
+  try{
+    const body = { q: document.getElementById("t_text").value,
+                   source: document.getElementById("t_from").value,
+                   target: document.getElementById("t_to").value };
+    const r = await api("/translate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const data = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(data));
+    show("t_out", "✅ " + (data.translatedText||JSON.stringify(data)), "ok");
+  }catch(e){ show("t_out", "❌ " + e.message, "err"); }
+  finally{ btn.disabled = false; }
+}
+
+/* 2 TTS */
+async function doTTS(btn){
+  if(!BASE){ show("tts_out","请先设置服务器地址","info"); return; }
+  btn.disabled = true; show("tts_out","⏳ 合成中…");
+  try{
+    const body = { input: document.getElementById("tts_text").value,
+                   voice: document.getElementById("tts_voice").value,
+                   model: "tts-1" };
+    const r = await api("/tts/v1/audio/speech", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    if(!r.ok){ show("tts_out","❌ HTTP "+r.status+" "+ (await r.text()), "err"); return; }
+    lastWavBlob = await r.blob();
+    show("tts_out","✅ 生成成功 · "+lastWavBlob.size+" bytes", "ok");
+    const url = URL.createObjectURL(lastWavBlob);
+    document.getElementById("tts_audio").innerHTML =
+      '<audio controls src="'+url+'"></audio>  <a href="'+url+'" download="tts.wav">下载</a>';
+    document.getElementById("useTtsBtn").style.display = "inline-block";
+  }catch(e){ show("tts_out","❌ "+e.message,"err"); }
+  finally{ btn.disabled=false; }
+}
+
+/* 3 STT */
+function useTtsAudio(){
+  if(!lastWavBlob){ show("stt_out","请先合成一段语音","info"); return; }
+  const fd = new FormData();
+  fd.append("file", lastWavBlob, "tts.wav");
+  fd.append("model","Systran/faster-whisper-base");
+  runSTT(fd);
+}
+async function doSTT(){
+  const f = document.getElementById("stt_file").files[0];
+  if(!f){ show("stt_out","请先选择音频文件","info"); return; }
+  const fd = new FormData();
+  fd.append("file", f);
+  fd.append("model","Systran/faster-whisper-base");
+  runSTT(fd);
+}
+async function runSTT(fd){
+  if(!BASE){ show("stt_out","请先设置服务器地址","info"); return; }
+  show("stt_out","⏳ 识别中，低配机可能需几十秒…");
+  try{
+    const r = await api("/stt/v1/audio/transcriptions", { method:"POST", body: fd });
+    const data = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(data));
+    show("stt_out","✅ 识别结果：<strong>" + (data.text||JSON.stringify(data)) + "</strong>","ok");
+  }catch(e){ show("stt_out","❌ "+e.message,"err"); }
+}
+
+/* 4 状态 */
+async function loadStats(btn){
+  if(!BASE) return;
+  btn.disabled = true;
+  try{
+    const r = await api("/stats");
+    const d = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(d));
+    const items = [];
+    for(const [k,v] of Object.entries(d)){
+      items.push('<div class="stat-box"><div class="stat-num">'+v+'</div><div class="stat-lbl">'+k+'</div></div>');
+    }
+    document.getElementById("stats_grid").innerHTML = items.join("") || '<div class="stat-box"><div class="stat-lbl">无数据</div></div>';
+  }catch(e){
+    document.getElementById("stats_grid").innerHTML = '<div class="stat-box"><div class="stat-lbl" style="color:#f87171;">获取失败: '+e.message+'</div></div>';
+  }finally{ btn.disabled = false; }
+}
+
+/* 测活 */
+async function pingAll(){
+  const r = await fetch(BASE+"/", {method:"GET"}).catch(()=>null);
+  if(r && r.ok) alert("✅ 网关可达: " + BASE);
+  else alert("❌ 不可达: " + BASE + "（检查地址/DNS/HTTPS）");
+}
+</script>
+</body>
+</html>
