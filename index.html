@@ -153,7 +153,8 @@ document.getElementById("gate_pwd").addEventListener("keydown", e=>{ if(e.key===
 })();
 
 /* ===== 服务器地址 ===== */
-const DEFAULT_BASE = "https://gcp.111312.xyz";
+// 页面由源站 Caddy 同源伺服时自动用本域地址；本地打开文件时才需要手动配置
+const DEFAULT_BASE = location.origin && location.origin.startsWith("http") ? location.origin : "https://gcp.111312.xyz";
 function normalizeBase(v){
   v = (v||"").trim().replace(/\/+$/,"");
   if(!v) return "";
