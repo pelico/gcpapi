@@ -193,10 +193,10 @@ async function doTTS(btn){
   if(!BASE){ show("tts_out","请先设置服务器地址","info"); return; }
   btn.disabled = true; show("tts_out","⏳ 合成中…");
   try{
-    const body = { input: document.getElementById("tts_text").value,
+    const body = { text: document.getElementById("tts_text").value,
                    voice: document.getElementById("tts_voice").value,
-                   model: "tts-1" };
-    const r = await api("/tts/v1/audio/speech", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+                   speed: 1 };
+    const r = await api("/tts/v1/synthesize", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
     if(!r.ok){ show("tts_out","❌ HTTP "+r.status+" "+ (await r.text()), "err"); return; }
     lastWavBlob = await r.blob();
     show("tts_out","✅ 生成成功 · "+lastWavBlob.size+" bytes", "ok");
