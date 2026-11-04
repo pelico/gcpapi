@@ -30,10 +30,6 @@
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; }
   @media (max-width: 620px){ .row { flex-direction: column; } }
-  .stats-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; }
-  .stat-box { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:14px; text-align:center; }
-  .stat-num { font-size:20px; font-weight:700; color:#7dd3fc; }
-  .stat-lbl { font-size:12px; color:#94a3b8; margin-top:6px; }
   .controls { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
   /* 密码门 */
   #gate { position: fixed; inset: 0; background: rgba(15,23,42,.92); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 99; }
@@ -117,11 +113,6 @@
     <div class="out info" id="stt_out">等待输入…</div>
   </div>
 
-  <div class="card">
-    <h2>4. 服务器状态 <span class="badge">/stats</span></h2>
-    <div class="stats-grid" id="stats_grid"><div class="stat-box"><div class="stat-lbl">点击"刷新状态"获取</div></div></div>
-    <button class="ghost" onclick="loadStats(this)">刷新状态</button>
-  </div>
 </div>
 
 <script>
@@ -242,24 +233,6 @@ async function runSTT(fd){
     if(!r.ok) throw new Error(JSON.stringify(data));
     show("stt_out","✅ 识别结果：<strong>" + (data.text||JSON.stringify(data)) + "</strong>","ok");
   }catch(e){ show("stt_out","❌ "+e.message,"err"); }
-}
-
-/* 4 状态 */
-async function loadStats(btn){
-  if(!BASE) return;
-  btn.disabled = true;
-  try{
-    const r = await api("/stats");
-    const d = await r.json();
-    if(!r.ok) throw new Error(JSON.stringify(d));
-    const items = [];
-    for(const [k,v] of Object.entries(d)){
-      items.push('<div class="stat-box"><div class="stat-num">'+v+'</div><div class="stat-lbl">'+k+'</div></div>');
-    }
-    document.getElementById("stats_grid").innerHTML = items.join("") || '<div class="stat-box"><div class="stat-lbl">无数据</div></div>';
-  }catch(e){
-    document.getElementById("stats_grid").innerHTML = '<div class="stat-box"><div class="stat-lbl" style="color:#f87171;">获取失败: '+e.message+'</div></div>';
-  }finally{ btn.disabled = false; }
 }
 
 /* 测活 */
